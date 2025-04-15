@@ -1,64 +1,85 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="optimize-container">
-    <!-- Input Form Box -->
+    <!-- Input Form -->
     <div class="optimize-form-container">
         <h2>Supply Chain Optimization</h2>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button type="submit" class="btn">Optimize</button>
+            <button type="submit" class="btn">Add Product</button>
         </form>
-        {% if result %}
-            <div class="result">
-                <h3>Result:</h3>
-                <p>{{ result }}</p>
-                {% if suggestion %}
-                    <p><strong>Suggestion:</strong> {{ suggestion }}</p>
-                {% endif %}
-            </div>
-        {% endif %}
     </div>
 
-    <!-- Table Box (Visible only if products exist) -->
+    <!-- Inventory Summary -->
+    <div class="summary-box">
+        <h3>Inventory KPIs</h3>
+        <p>Total Inventory Value: ₹{{ total_value|floatformat:2 }}</p>
+        <p>Potential Profit: ₹{{ total_profit|floatformat:2 }}</p>
+        <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+            <div>
+                <h4>ABC Analysis</h4>
+                <p>A Items (High Value): {{ abc_analysis.A.count }} (₹{{ abc_analysis.A.value|floatformat:2 }})</p>
+                <p>B Items (Medium Value): {{ abc_analysis.B.count }} (₹{{ abc_analysis.B.value|floatformat:2 }})</p>
+                <p>C Items (Low Value): {{ abc_analysis.C.count }} (₹{{ abc_analysis.C.value|floatformat:2 }})</p>
+            </div>
+            <a href="{% url 'export_csv' %}" 
+   class="btn btn-export" 
+   style="padding:10px 20px; font-size:16px; border-radius:8px; font-weight:500; align-self:flex-start;">
+   Export to CSV
+</a>
+
+        </div>
+    </div>
+
+    <!-- Product Table -->
     {% if products %}
-    <div class="optimize-result-container">
-        <h3>Your Products</h3>
+    <div class="product-table">
+        <h3>Product Inventory</h3>
         <table>
             <thead>
                 <tr>
-                    <th>Product Name</th>
+                    <th>Product</th>
+                    <th>Category</th>
                     <th>Demand</th>
                     <th>Supply</th>
+                    <th>Reorder Point</th>
                     <th>Cost</th>
-                    <th>Suggestion</th>
+                    <th>Price</th>
+                    <th>Margin</th>
+                    <th>Status</th>
+                    <th>Priority</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for product in products %}
-                    <tr>
-                        <td>{{ product.name }}</td>
-                        <td>{{ product.demand }}</td>
-                        <td>{{ product.supply }}</td>
-                        <td>{{ product.cost }}</td>
-                        <td>
-                            {% if product.difference > 0 %}
-                                <span style="color: red;">Warning: Supply is less than demand. Need {{ product.absolute_difference }} more units.</span>
-                            {% elif product.difference == 0 %}
-                                <span style="color: green;">Optimal: Supply meets demand.</span>
-                            {% else %}
-                                <span style="color: blue;">Supply exceeds demand by {{ product.absolute_difference }} units.</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'update_product' product.id %}" class="btn btn-update">Update</a>
-                            <form action="{% url 'delete_product' product.id %}" method="post" style="display: inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-delete">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.category }}</td>
+                    <td>{{ product.demand }}</td>
+                    <td>{{ product.supply }}</td>
+                    <td>{{ product.reorder_point|floatformat:0 }}</td>
+                    <td>₹{{ product.cost }}</td>
+                    <td>₹{{ product.selling_price }}</td>
+                    <td>{{ product.profit_margin|floatformat:2 }}%</td>
+                    <td>
+                        {% if product.status == "LOW" %}
+                        <span class="alert-red">LOW (Need {{ product.absolute_difference }})</span>
+                        {% else %}
+                            <span class="alert-green">OK</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ product.urgency|floatformat:2 }}</td>
+                    <td class="action-buttons">
+                        <a href="{% url 'update_product' product.id %}" class="btn btn-update">Edit</a>
+                        <a href="{% url 'quick_reorder' product.id %}" class="btn btn-reorder">Auto-Fill</a>
+                        <form action="{% url 'delete_product' product.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-delete">Delete</button>
+                        </form>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
